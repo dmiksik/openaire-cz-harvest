@@ -2,17 +2,15 @@
 """
 Ze vstupního JSONL (OpenAIRE researchProducts) vygeneruje Markdown tabulku.
 
-Pro každý záznam udělá dva řádky:
+Pro každý záznam (který už je předfiltrovaný na "má aspoň jeden non-DOI PID")
+udělá DVA řádky:
 
 1) mainTitle | publicationDate | publisher | schemes
    - schemes = všechny hodnoty z record["pids"][].scheme, oddělené čárkou
 
-2) URLs |  |  | urls
-   - urls = všechny hodnoty z instances[].urls, jako klikatelné odkazy
-            [url](url), oddělené čárkou
-
-Vstup:
-  JSONL nebo JSONL.GZ se záznamy, u kterých už víme, že mají aspoň jeden non-DOI PID.
+2) URLs přes „celou tabulku“:
+   - první sloupec obsahuje všechny URLs z instances[].urls, každé na vlastním řádku (<br>)
+   - ostatní tři sloupce jsou prázdné
 """
 
 import argparse
@@ -31,7 +29,7 @@ def open_maybe_gzip(path: str, mode: str = "rt", encoding: str = "utf-8"):
 
 
 def escape_md(text: Optional[str]) -> str:
-    """
+    r"""
     Jednoduché escapování pro použití v Markdown tabulce:
     - None -> ""
     - nahradí | za \|
@@ -46,12 +44,13 @@ def escape_md(text: Optional[str]) -> str:
 
 
 def get_pid_schemes(rec: Dict) -> str:
+    """Vezme schemes z record['pids'] a vrátí je jako 'scheme1, scheme2, ...'."""
     schemes: List[str] = []
     for pid in rec.get("pids") or []:
         scheme = pid.get("scheme")
         if scheme:
             schemes.append(str(scheme))
-    # unikátní, v pořadí výskytu
+    # unikátní v pořadí výskytu
     seen = set()
     unique = []
     for s in schemes:
@@ -62,6 +61,7 @@ def get_pid_schemes(rec: Dict) -> str:
 
 
 def get_all_urls(rec: Dict) -> List[str]:
+    """Všechny URL z instances[].urls, bez duplicit, v pořadí výskytu."""
     urls: List[str] = []
     for inst in rec.get("instances") or []:
         for u in inst.get("urls") or []:
@@ -69,7 +69,7 @@ def get_all_urls(rec: Dict) -> List[str]:
             if not u:
                 continue
             urls.append(u)
-    # odfiltrovat duplicity, zachovat pořadí
+    # deduplikace se zachováním pořadí
     seen = set()
     unique = []
     for u in urls:
@@ -101,13 +101,19 @@ def generate_markdown(input_path: str, output_path: str) -> None:
             schemes = escape_md(get_pid_schemes(rec))
 
             urls = get_all_urls(rec)
-            urls_md = ", ".join(f"[{escape_md(u)}]({u})" for u in urls) if urls else ""
+            if urls:
+                # každá URL na vlastním řádku, klikatelné
+                urls_md = "<br>".join(
+                    f"[{escape_md(u)}]({u})" for u in urls
+                )
+            else:
+                urls_md = ""
 
-            # řádek s hlavními údaji
+            # 1. řádek: hlavní informace
             out_fh.write(f"| {title} | {pub_date} | {publisher} | {schemes} |\n")
 
-            # řádek s URL (první sloupec popíšeme 'URLs', ostatní necháme prázdné)
-            out_fh.write(f"| URLs |  |  | {urls_md} |\n")
+            # 2. řádek: „colspan“ – všechny URLs v prvním sloupci, zbytek prázdný
+            out_fh.write(f"| {urls_md} |  |  |  |\n")
 
     finally:
         in_fh.close()
@@ -116,13 +122,13 @@ def generate_markdown(input_path: str, output_path: str) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Vygeneruje Markdown tabulku pro záznamy s non-DOI PIDy."
+        description="Vygeneruje Markdown tabulku pro záznamy s non-DOI PIDy (2 řádky na záznam)."
     )
     ap.add_argument(
         "--input",
         "-i",
         required=True,
-        help="Vstupní JSONL/JSONL.GZ se záznamy (např. cz_datasets_countryCZ_non_doi_pids.jsonl.gz)",
+        help="Vstupní JSONL/JSONL.GZ (např. cz_datasets_countryCZ_non_doi_pids.jsonl)",
     )
     ap.add_argument(
         "--output-md",
