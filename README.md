@@ -6,7 +6,7 @@ research** (countryCode = `CZ`), with a special focus on **persistent identifier
 (PID) schemes** (DOI, Handle, and others) and on **non-DOI PIDs**.
 
 The repo is meant as a reproducible, versioned notebook:
-- harvesting all dataset records with `type=dataset` `countryCode=CZ` from OpenAIRE,
+- harvesting all dataset records with `type=dataset` AND `countryCode=CZ` from OpenAIRE,
 - extracting subsets of records with non-DOI PIDs,
 - generating human-readable Markdown reports (including per-record, clickable
   link lists).
