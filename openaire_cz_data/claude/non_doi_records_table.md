@@ -36,24 +36,6 @@
 
 ## 📄 Detailní seznam záznamů s non-DOI PID
 
-<style>
-table {
-  width: 100%;
-  table-layout: fixed;
-}
-td {
-  word-wrap: break-word;
-  vertical-align: top;
-  padding: 8px;
-}
-.url-row {
-  background-color: #f5f5f5;
-  font-size: 0.9em;
-}
-.url-row td {
-  padding: 12px;
-}
-</style>
 
 | Title | Date | Publisher | PID Schemes |
 |-------|------|-----------|-------------|

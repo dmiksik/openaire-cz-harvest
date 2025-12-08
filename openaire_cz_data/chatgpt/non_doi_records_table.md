@@ -1,11 +1,22 @@
-# Overview of PID schemes in this report
+# Overview of PID schemes
 
-- Total records in this report: **266**
-- Records with at least one PID: **266**
-- Records without any PID: **0**
-- Distinct PID schemes observed: doi, handle, mag_id, oai, pdb, pmc, pmid, urn
+## Full harvest (all countryCode=CZ datasets)
 
-## PID scheme combinations
+- Input file: `openaire_cz_data/chatgpt/cz_datasets_countryCZ.jsonl`
+- Total records: **10329**
+- Records with at least one PID: **10314**
+- Records without any PID: **15**
+- Distinct PID schemes (full harvest): doi, handle, mag_id, oai, pdb, pmc, pmid, urn
+
+## This report subset
+
+- Input file: `openaire_cz_data/chatgpt/cz_datasets_countryCZ_non_doi_pids.jsonl`
+- Total records in this subset: **266**
+- Records with at least one PID (subset): **266**
+- Records without any PID (subset): **0**
+- Distinct PID schemes in subset: doi, handle, mag_id, oai, pdb, pmc, pmid, urn
+
+### PID scheme combinations in subset
 
 | PID schemes combination | Count |
 |-------------------------|-------|
@@ -22,7 +33,7 @@
 | `doi + urn` | 1 |
 
 
-## Records
+## Records (subset)
 
 | mainTitle | publicationDate | publisher | schemes |
 |-----------|-----------------|-----------|---------|
