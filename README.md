@@ -26,7 +26,7 @@ Top-level:
   `countryCode=CZ`.
 
 - `harvest-cz-dataset-records-Claude.py`  
-  Earlier / alternative version of the harvester kept for comparison and
+  Alternative version of the harvester kept for comparison and
   provenance.
 
 - `openaire_cz_data/`  
@@ -55,7 +55,7 @@ Top-level:
       Helper script to filter the harvest down to records with non-DOI PIDs.
 
   - `openaire_cz_data/claude/`  
-    Older / parallel analysis outputs and helper scripts (JSON/CSV exports,
+    Parallel analysis outputs and helper scripts (JSON/CSV exports,
     HTML/Markdown tables, shell helpers). Kept for provenance and comparison.
 
 Exact filenames may evolve over time, but the general pattern is:
