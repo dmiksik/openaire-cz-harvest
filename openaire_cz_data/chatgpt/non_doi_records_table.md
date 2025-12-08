@@ -1,3 +1,29 @@
+# Overview of PID schemes in this report
+
+- Total records in this report: **266**
+- Records with at least one PID: **266**
+- Records without any PID: **0**
+- Distinct PID schemes observed: doi, handle, mag_id, oai, pdb, pmc, pmid, urn
+
+## PID scheme combinations
+
+| PID schemes combination | Count |
+|-------------------------|-------|
+| `doi + handle` | 179 |
+| `doi + mag_id` | 46 |
+| `handle + doi` | 12 |
+| `handle` | 6 |
+| `pmid + pmc + doi` | 6 |
+| `doi + oai` | 5 |
+| `doi + pdb` | 5 |
+| `pmid + doi` | 4 |
+| `urn` | 1 |
+| `pmid` | 1 |
+| `doi + urn` | 1 |
+
+
+## Records
+
 | mainTitle | publicationDate | publisher | schemes |
 |-----------|-----------------|-----------|---------|
 | Bohemistické konsorcium | 2025-01-01 | ASEP Repository | doi, handle |
