@@ -12,8 +12,13 @@ Combine Unknown Repository analyses into a single Markdown report:
     1) | mainTitle | mainTitle | publicationDate | publisher | collectedFrom | schemes |
     2) | all URLs as clickable links in column 1 | ...empty columns... |
 
-mainTitle is wrapped at word boundaries so that each line is at most ~80 characters;
+mainTitle is wrapped at word boundaries so that each line is at most ~60+ chars
+(řádek končí za slovem, které poprvé překročí hranici 60 znaků);
 line breaks are rendered as <br> in Markdown.
+
+URLs:
+- clickable link is [TRUNCATED_TEXT](FULL_URL)
+- TRUNCATED_TEXT is shortened to first 60 characters + "..." if longer.
 """
 
 import argparse
@@ -47,7 +52,7 @@ def escape_md(text: Optional[str]) -> str:
     return s
 
 
-def wrap_at_word_boundary(text: str, max_len: int = 80) -> str:
+def wrap_at_word_boundary(text: str, max_len: int = 60) -> str:
     """
     Zalomí text po slovech tak, že:
 
@@ -94,6 +99,19 @@ def wrap_at_word_boundary(text: str, max_len: int = 80) -> str:
         lines.append(" ".join(current_words))
 
     return "\n".join(lines)
+
+
+def shorten_url_display(url: str, max_len: int = 60) -> str:
+    """
+    Zkrátí viditelný text odkazu na max_len znaků.
+    - pokud je URL kratší nebo rovna max_len, vrátí ji celou
+    - jinak vrátí prvních max_len znaků + "..."
+    (cílový odkaz v ( ) zůstává vždy plný)
+    """
+    url = url or ""
+    if len(url) <= max_len:
+        return url
+    return url[:max_len] + "..."
 
 
 def collect_all_pid_schemes(rec: Dict) -> List[str]:
@@ -263,7 +281,7 @@ def generate_markdown(
 
         for rec in records:
             raw_title = rec.get("mainTitle") or ""
-            wrapped_title = wrap_at_word_boundary(raw_title, max_len=80)
+            wrapped_title = wrap_at_word_boundary(raw_title, max_len=60)
             title = escape_md(wrapped_title)
 
             pub_date = escape_md(rec.get("publicationDate"))
@@ -274,7 +292,12 @@ def generate_markdown(
 
             urls = collect_urls(rec)
             if urls:
-                urls_md = "<br>".join(f"[{escape_md(u)}]({u})" for u in urls)
+                url_links: List[str] = []
+                for u in urls:
+                    display = shorten_url_display(u, max_len=60)
+                    display_escaped = escape_md(display)
+                    url_links.append(f"[{display_escaped}]({u})")
+                urls_md = "<br>".join(url_links)
             else:
                 urls_md = ""
 
