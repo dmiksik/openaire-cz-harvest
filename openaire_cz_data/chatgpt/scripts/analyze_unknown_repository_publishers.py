@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-Analyze 'Unknown Repository' records:
+Combine Unknown Repository analyses into a single Markdown report:
 
-- breakdown by publisher
-- detailed Markdown table, 2 rows per record, sorted by mainTitle:
+- At the top, include the full content of unknown_repository_analysis.md
+  (or any other analysis Markdown you provide via --analysis-md).
 
-  1) | mainTitle | mainTitle | publicationDate | publisher | collectedFrom | schemes |
-  2) | all URLs as clickable links in column 1 | ...empty columns... |
+- Then add:
+  - breakdown by publisher (from unknown_repository_records.jsonl),
+  - detailed per-record table (2 rows per record), sorted by mainTitle:
 
-Input:  JSONL/JSONL.GZ with records (typically unknown_repository_records.jsonl)
-Output: Markdown report
+    1) | mainTitle | mainTitle | publicationDate | publisher | collectedFrom | schemes |
+    2) | all URLs as clickable links in column 1 | ...empty columns... |
+
+mainTitle is wrapped at word boundaries so that each line is at most ~80 characters;
+line breaks are rendered as <br> in Markdown.
 """
 
 import argparse
@@ -18,7 +22,6 @@ import json
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import urlparse
 
 
 def open_maybe_gzip(path: str, mode: str = "rt", encoding: str = "utf-8"):
@@ -42,6 +45,55 @@ def escape_md(text: Optional[str]) -> str:
     s = s.replace("|", r"\|")
     s = s.replace("\n", "<br>")
     return s
+
+
+def wrap_at_word_boundary(text: str, max_len: int = 80) -> str:
+    """
+    Zalomí text po slovech tak, že:
+
+    - jde po slovech zleva doprava,
+    - jakmile délka aktuálního řádku *poprvé* přesáhne max_len díky dalšímu slovu,
+      nechá dané slovo na tom řádku a za něj vloží zalomení (\n),
+    - poté pokračuje na nový řádek se stejnou logikou.
+
+    Výsledkem je text s \n, které se pak v escape_md převedou na <br>.
+    """
+    text = text or ""
+    words = text.split(" ")
+    if not words:
+        return text
+
+    lines: List[str] = []
+    current_words: List[str] = []
+    current_len = 0
+
+    for w in words:
+        if not current_words:
+            # první slovo na řádku
+            current_words.append(w)
+            current_len = len(w)
+            continue
+
+        # +1 kvůli mezeře
+        new_len = current_len + 1 + len(w)
+
+        # pokud jsme zatím pod prahem a tímto slovem ho poprvé překročíme
+        if current_len < max_len and new_len > max_len:
+            # přidáme slovo, ukončíme řádek
+            current_words.append(w)
+            current_len = new_len
+            lines.append(" ".join(current_words))
+            current_words = []
+            current_len = 0
+        else:
+            # jinak slovo jen přidáme na aktuální řádek
+            current_words.append(w)
+            current_len = new_len
+
+    if current_words:
+        lines.append(" ".join(current_words))
+
+    return "\n".join(lines)
 
 
 def collect_all_pid_schemes(rec: Dict) -> List[str]:
@@ -99,12 +151,11 @@ def collect_urls(rec: Dict) -> List[str]:
 
 
 def collect_collected_from_values(rec: Dict) -> List[str]:
-    """Return distinct collectedFrom.value strings, in order of appearance."""
+    """Return distinct collectedFrom.value (or key) strings, in order of appearance."""
     vals: List[str] = []
     for cf in rec.get("collectedFrom") or []:
         v = (cf.get("value") or "").strip()
         if not v:
-            # fallback na key, kdyby value nebylo
             v = (cf.get("key") or "").strip()
         if not v:
             continue
@@ -147,10 +198,15 @@ def load_records_and_publishers(path: str) -> Tuple[List[Dict], Counter]:
     return records, publisher_counter
 
 
-def generate_markdown(input_path: str, output_path: str) -> None:
-    records, publisher_counter = load_records_and_publishers(input_path)
+def generate_markdown(
+    input_jsonl: str,
+    output_md: str,
+    analysis_md: Optional[str] = None,
+) -> None:
+    # načti záznamy + počty publisherů
+    records, publisher_counter = load_records_and_publishers(input_jsonl)
 
-    # seřadit záznamy podle mainTitle (case-insensitive), fallback na ""
+    # seřadit záznamy podle mainTitle (case-insensitive) a v rámci toho podle data
     records.sort(
         key=lambda r: (
             str(r.get("mainTitle") or "").lower(),
@@ -158,14 +214,34 @@ def generate_markdown(input_path: str, output_path: str) -> None:
         )
     )
 
-    out = Path(output_path).open("w", encoding="utf-8")
+    out = Path(output_md).open("w", encoding="utf-8")
 
     try:
-        out.write("# Unknown Repository records – publishers and detailed list\n\n")
-        out.write(f"- Input file: `{input_path}`\n")
-        out.write(f"- Total records: **{len(records)}**\n\n")
+        # 1) Předehra: celý obsah unknown_repository_analysis.md (pokud je k dispozici)
+        if analysis_md is not None:
+            analysis_path = Path(analysis_md)
+            if analysis_path.is_file():
+                with analysis_path.open("r", encoding="utf-8") as f:
+                    out.write(f.read())
+                # oddělíme další část dvěma novými řádky a horizontální čárou
+                out.write("\n\n---\n\n")
+            else:
+                # fallback – kdyby soubor neexistoval, aspoň krátká poznámka
+                out.write(
+                    f"> **Note:** Analysis file `{analysis_md}` not found; "
+                    "publisher breakdown is still generated below.\n\n"
+                )
 
-        # --- Breakdown by publisher ---
+        else:
+            # Pokud nebyl předán analysis_md, přidej krátký úvod
+            out.write("# Unknown Repository records – extended report\n\n")
+            out.write(
+                f"- Records JSONL input: `{input_jsonl}`\n"
+                f"- Total records: **{len(records)}**\n\n"
+            )
+            out.write("---\n\n")
+
+        # 2) Breakdown podle publisher
         out.write("## Breakdown by publisher\n\n")
         out.write("| publisher | records |\n")
         out.write("|-----------|---------|\n")
@@ -176,7 +252,7 @@ def generate_markdown(input_path: str, output_path: str) -> None:
             out.write("| *(none)* | 0 |\n")
         out.write("\n\n")
 
-        # --- Detailed per-record table ---
+        # 3) Detailní tabulka záznamů (2 řádky na záznam)
         out.write("## Records (sorted by mainTitle)\n\n")
         out.write(
             "| mainTitle | mainTitle | publicationDate | publisher | collectedFrom | schemes |\n"
@@ -186,7 +262,10 @@ def generate_markdown(input_path: str, output_path: str) -> None:
         )
 
         for rec in records:
-            title = escape_md(rec.get("mainTitle"))
+            raw_title = rec.get("mainTitle") or ""
+            wrapped_title = wrap_at_word_boundary(raw_title, max_len=80)
+            title = escape_md(wrapped_title)
+
             pub_date = escape_md(rec.get("publicationDate"))
             publisher = escape_md(rec.get("publisher") or "")
             cf_vals = collect_collected_from_values(rec)
@@ -199,7 +278,7 @@ def generate_markdown(input_path: str, output_path: str) -> None:
             else:
                 urls_md = ""
 
-            # 1. řádek: metadata (2x mainTitle podle zadání)
+            # 1. řádek: metadata (2× mainTitle, jak jsi chtěl)
             out.write(
                 f"| {title} | {title} | {pub_date} | {publisher} | "
                 f"{escape_md(cf_str)} | {escape_md(schemes)} |\n"
@@ -215,8 +294,8 @@ def generate_markdown(input_path: str, output_path: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=(
-            "Generate publisher breakdown and detailed two-row-per-record "
-            "Markdown table from unknown_repository_records.jsonl."
+            "Combine unknown_repository_analysis.md and unknown_repository_records.jsonl "
+            "into a single Markdown report with publisher breakdown and a detailed table."
         )
     )
     ap.add_argument(
@@ -227,14 +306,25 @@ def main() -> None:
              "(e.g. unknown_repository_records.jsonl)",
     )
     ap.add_argument(
+        "--analysis-md",
+        "-a",
+        required=False,
+        help="Existing Markdown analysis file to prepend "
+             "(e.g. unknown_repository_analysis.md).",
+    )
+    ap.add_argument(
         "--output-md",
         "-o",
         required=True,
-        help="Output Markdown file.",
+        help="Output combined Markdown file.",
     )
     args = ap.parse_args()
 
-    generate_markdown(args.input_jsonl, args.output_md)
+    generate_markdown(
+        input_jsonl=args.input_jsonl,
+        output_md=args.output_md,
+        analysis_md=args.analysis_md,
+    )
 
 
 if __name__ == "__main__":
