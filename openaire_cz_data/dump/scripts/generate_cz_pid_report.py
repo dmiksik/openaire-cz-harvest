@@ -415,41 +415,46 @@ def main():
             lines.append("_No datasets found for this scheme._\n")
             continue
 
-        for d in datasets:
-            title = d["mainTitle"] or "(no title)"
-            pub_date = d["publicationDate"]
-            pub_str = pub_date.isoformat() if isinstance(pub_date, date) else "n.d."
-            dataset_id = d["dataset_id"]
+    for d in datasets:
+        title = d["mainTitle"] or "(no title)"
+        pub_date = d["publicationDate"]
+        pub_str = pub_date.isoformat() if isinstance(pub_date, date) else "n.d."
+        dataset_id = d["dataset_id"]
 
-            pid_md = make_pid_md(scheme, list(d["pid_values"]))
-            org_short = "; ".join(sorted(d["cz_org_short"])) or "(none)"
-            org_names = "; ".join(sorted(d["cz_org_names"])) or "(none)"
+        pid_md = make_pid_md(scheme, list(d["pid_values"]))
+        org_short = "; ".join(sorted(d["cz_org_short"])) or "(none)"
+        org_names = "; ".join(sorted(d["cz_org_names"])) or "(none)"
 
-            # repositories
-            repo_items = []
-            # pair up names, types, urls via cartesian across sets – for small N OK
-            for name in d["ds_names"] or {""}:
-                for url in d["ds_urls"] or {""}:
-                    # type we can collapse afterwards
-                    repo_items.append(
-                        mk_repo_md(
-                            name,
-                            url,
-                            "; ".join(sorted(d["ds_types"])) if d["ds_types"] else "",
-                        )
+        # repositories
+        repo_items = []
+        for name in d["ds_names"] or {""}:
+            for url in d["ds_urls"] or {""}:
+                repo_items.append(
+                    mk_repo_md(
+                        name,
+                        url,
+                        "; ".join(sorted(d["ds_types"])) if d["ds_types"] else "",
                     )
-            repo_items = [r for r in sorted(set(repo_items)) if r]
-            repos_md = " ; ".join(repo_items) if repo_items else "(no repository info)"
+                )
+        repo_items = [r for r in sorted(set(repo_items)) if r]
+        repos_md = " ; ".join(repo_items) if repo_items else "(no repository info)"
 
-            lines.append(f"- **{title}** ({pub_str})  ")
-            lines.append(f"  Dataset ID: `{dataset_id}`  ")
-            if pid_md:
-                lines.append(f"  {label}: {pid_md}  ")
-            else:
-                lines.append(f"  {label}: *(no PID values found)*  ")
-            lines.append(f"  CZ organisations (short): `{org_short}`  ")
-            lines.append(f"  CZ organisations (full): `{org_names}`  ")
-            lines.append(f"  Repositories: {repos_md}\n")
+        dataset_url = (
+            f"https://explore.openaire.eu/search/dataset?datasetId={dataset_id}"
+        )
+
+        lines.append(f"- **{title}** ({pub_str})  ")
+        lines.append(
+            f"  OpenAIRE Dataset ID: [{dataset_id}]({dataset_url})  "
+        )
+        if pid_md:
+            lines.append(f"  {label}: {pid_md}  ")
+        else:
+            lines.append(f"  {label}: *(no PID values found)*  ")
+        lines.append(f"  CZ organisations (short): `{org_short}`  ")
+        lines.append(f"  CZ organisations (full): `{org_names}`  ")
+        lines.append(f"  Repositories: {repos_md}\n")
+
 
     # --- Reproducibility notes ------------------------------------------
     lines.append("---\n")
