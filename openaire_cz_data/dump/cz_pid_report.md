@@ -65,14 +65,6 @@ Formally, a dataset appears below for a given `pid_scheme` if:
 - it has **no** row in `dataset_pids` with `pid_scheme = 'doi'`, and
 - it has at least one row in `cz_dataset_aff` (Czech affiliation).
 
-For each dataset we show:
-
-- main title and publication date,
-- OpenAIRE dataset identifier,
-- non-DOI PID values (with clickable PID URLs where applicable),
-- affiliated Czech organisations,
-- and repository / datasource information, where available.
-
 ### Datasets with handle only (no DOI)
 
 _Total: 18 CZ datasets with `handle` PIDs and no DOI._
