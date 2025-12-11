@@ -13,8 +13,9 @@ Generate Markdown report for CZ PID schemes and non-DOI-only datasets.
 """
 
 from pathlib import Path
-import duckdb
 from datetime import date
+from typing import Optional, List
+import duckdb
 
 # --- CONFIG -------------------------------------------------------------
 
@@ -27,7 +28,7 @@ OUT_PATH = Path("/home/ubuntu/open-aire-harvest/openaire_cz_data/dump/cz_pid_rep
 # ------------------------------------------------------------------------
 
 
-def format_int(n):
+def format_int(n: Optional[int]) -> str:
     """Format integer with thin spaces for readability."""
     if n is None:
         return ""
@@ -63,7 +64,7 @@ def make_pmc_url(value: str) -> str:
     return f"<https://www.ncbi.nlm.nih.gov/pmc/articles/{core}/>"
 
 
-def mk_repo_md(name: str | None, url: str | None, rtype: str | None) -> str:
+def mk_repo_md(name: Optional[str], url: Optional[str], rtype: Optional[str]) -> str:
     """Format repository/datasource info as Markdown."""
     name = (name or "").strip()
     url = (url or "").strip()
@@ -107,9 +108,9 @@ def pid_label_for_scheme(scheme: str) -> str:
         return f"{scheme} PID(s)"
 
 
-def make_pid_md(scheme: str, values: list[str]) -> str:
+def make_pid_md(scheme: str, values: List[str]) -> str:
     """Format PID values for a given scheme as Markdown with clickable URLs."""
-    urls = []
+    urls: List[str] = []
     for v in sorted({(v or "").strip() for v in values if v}):
         if scheme == "handle":
             urls.append(make_handle_url(v))
@@ -123,7 +124,7 @@ def make_pid_md(scheme: str, values: list[str]) -> str:
     return " ; ".join(urls)
 
 
-def fetch_summary_stats(con):
+def fetch_summary_stats(con: duckdb.DuckDBPyConnection):
     """Fetch summary stats for the top table and some totals."""
     stats = con.execute(
         """
@@ -142,7 +143,7 @@ def fetch_summary_stats(con):
     totals = con.execute(
         """
         SELECT
-          (SELECT COUNT(*) FROM cz_dataset_aff)              AS n_aff_rows_full,
+          (SELECT COUNT(*) FROM cz_dataset_aff)                  AS n_aff_rows_full,
           (SELECT COUNT(DISTINCT dataset_id) FROM cz_dataset_aff) AS n_datasets_cz
         """
     ).fetchone()
@@ -150,7 +151,9 @@ def fetch_summary_stats(con):
     return stats, totals
 
 
-def fetch_non_doi_datasets_for_scheme(con, scheme: str):
+def fetch_non_doi_datasets_for_scheme(
+    con: duckdb.DuckDBPyConnection, scheme: str
+):
     """
     Return list of dicts with dataset-level info for datasets that:
     - have given pid_scheme
@@ -258,7 +261,7 @@ def main():
     stats, totals = fetch_summary_stats(con)
     n_aff_rows_full, n_datasets_cz = totals
 
-    lines: list[str] = []
+    lines: List[str] = []
 
     # --- Header & intro -------------------------------------------------
     lines.append("# CZ datasets in OpenAIRE with non-DOI PIDs\n")
@@ -328,42 +331,54 @@ def main():
         "`country.code = 'CZ'` in the OpenAIRE Graph.\n"
     )
 
-    lines.append("- **`pid_scheme`**  \n"
-                 "  PID scheme as it appears in `dataset_pids.pid_scheme`, "
-                 "e.g. `doi`, `handle`, `pmid`, `pmc`, `pdb`, `mag_id`.\n")
-    lines.append("- **`n_pid_rows`**  \n"
-                 "  Number of PID rows in `dataset_pids` for the given "
-                 "`pid_scheme`, restricted to datasets that have at least "
-                 "one Czech affiliation. One row ≙ one "
-                 "`(dataset_id, pid_scheme, pid_value)` triple.\n")
-    lines.append("- **`n_aff_rows_full`**  \n"
-                 "  Number of affiliation rows (full, not deduplicated) for "
-                 "datasets that have at least one PID of the given scheme. "
-                 "Concretely: count of rows in `cz_dataset_aff` for all "
-                 "datasets that appear in `dataset_pids` with this "
-                 "`pid_scheme`. One row ≙ one `(dataset_id, CZ organisation)` "
-                 "pair.\n")
-    lines.append("- **`n_datasets_with_scheme_dedup`**  \n"
-                 "  Number of **distinct datasets** that have at least one "
-                 "PID of the given scheme and at least one Czech affiliation. "
-                 "Each dataset is counted at most once per scheme, even if it "
-                 "has multiple PIDs of that scheme (e.g. multiple DOIs).\n")
-    lines.append("- **`n_datasets_with_scheme_and_doi_dedup`**  \n"
-                 "  Number of **distinct datasets** that have at least one "
-                 "PID of the given `pid_scheme` *and* at least one DOI "
-                 "(`pid_scheme = 'doi'`), and at least one Czech affiliation.\n")
-    lines.append("- **`n_datasets_with_non-doi_scheme_only`**  \n"
-                 "  Number of **distinct datasets** that have at least one "
-                 "PID of the given `pid_scheme`, have **no DOI** "
-                 "(`pid_scheme = 'doi'`), and at least one Czech affiliation.  \n"
-                 "  By construction:\n"
-                 "  ```text\n"
-                 "  n_datasets_with_non-doi_scheme_only\n"
-                 "    = n_datasets_with_scheme_dedup\n"
-                 "      - n_datasets_with_scheme_and_doi_dedup\n"
-                 "  ```\n"
-                 "  For `doi` itself this value is always `0` "
-                 "(a dataset cannot “have a DOI but no DOI”).\n")
+    lines.append(
+        "- **`pid_scheme`**  \n"
+        "  PID scheme as it appears in `dataset_pids.pid_scheme`, "
+        "e.g. `doi`, `handle`, `pmid`, `pmc`, `pdb`, `mag_id`.\n"
+    )
+    lines.append(
+        "- **`n_pid_rows`**  \n"
+        "  Number of PID rows in `dataset_pids` for the given "
+        "`pid_scheme`, restricted to datasets that have at least "
+        "one Czech affiliation. One row ≙ one "
+        "`(dataset_id, pid_scheme, pid_value)` triple.\n"
+    )
+    lines.append(
+        "- **`n_aff_rows_full`**  \n"
+        "  Number of affiliation rows (full, not deduplicated) for "
+        "datasets that have at least one PID of the given scheme. "
+        "Concretely: count of rows in `cz_dataset_aff` for all "
+        "datasets that appear in `dataset_pids` with this "
+        "`pid_scheme`. One row ≙ one `(dataset_id, CZ organisation)` "
+        "pair.\n"
+    )
+    lines.append(
+        "- **`n_datasets_with_scheme_dedup`**  \n"
+        "  Number of **distinct datasets** that have at least one "
+        "PID of the given scheme and at least one Czech affiliation. "
+        "Each dataset is counted at most once per scheme, even if it "
+        "has multiple PIDs of that scheme (e.g. multiple DOIs).\n"
+    )
+    lines.append(
+        "- **`n_datasets_with_scheme_and_doi_dedup`**  \n"
+        "  Number of **distinct datasets** that have at least one "
+        "PID of the given `pid_scheme` *and* at least one DOI "
+        "(`pid_scheme = 'doi'`), and at least one Czech affiliation.\n"
+    )
+    lines.append(
+        "- **`n_datasets_with_non-doi_scheme_only`**  \n"
+        "  Number of **distinct datasets** that have at least one "
+        "PID of the given `pid_scheme`, have **no DOI** "
+        "(`pid_scheme = 'doi'`), and at least one Czech affiliation.  \n"
+        "  By construction:\n"
+        "  ```text\n"
+        "  n_datasets_with_non-doi_scheme_only\n"
+        "    = n_datasets_with_scheme_dedup\n"
+        "      - n_datasets_with_scheme_and_doi_dedup\n"
+        "  ```\n"
+        "  For `doi` itself this value is always `0` "
+        "(a dataset cannot “have a DOI but no DOI”).\n"
+    )
 
     lines.append("---\n")
 
@@ -415,46 +430,46 @@ def main():
             lines.append("_No datasets found for this scheme._\n")
             continue
 
-    for d in datasets:
-        title = d["mainTitle"] or "(no title)"
-        pub_date = d["publicationDate"]
-        pub_str = pub_date.isoformat() if isinstance(pub_date, date) else "n.d."
-        dataset_id = d["dataset_id"]
+        for d in datasets:
+            title = d["mainTitle"] or "(no title)"
+            pub_date = d["publicationDate"]
+            pub_str = pub_date.isoformat() if isinstance(pub_date, date) else "n.d."
+            dataset_id = d["dataset_id"]
 
-        pid_md = make_pid_md(scheme, list(d["pid_values"]))
-        org_short = "; ".join(sorted(d["cz_org_short"])) or "(none)"
-        org_names = "; ".join(sorted(d["cz_org_names"])) or "(none)"
+            pid_md = make_pid_md(scheme, list(d["pid_values"]))
+            org_short = "; ".join(sorted(d["cz_org_short"])) or "(none)"
+            org_names = "; ".join(sorted(d["cz_org_names"])) or "(none)"
 
-        # repositories
-        repo_items = []
-        for name in d["ds_names"] or {""}:
-            for url in d["ds_urls"] or {""}:
-                repo_items.append(
-                    mk_repo_md(
-                        name,
-                        url,
-                        "; ".join(sorted(d["ds_types"])) if d["ds_types"] else "",
+            # repositories
+            repo_items: List[str] = []
+            for name in d["ds_names"] or {""}:
+                for url in d["ds_urls"] or {""}:
+                    repo_items.append(
+                        mk_repo_md(
+                            name,
+                            url,
+                            "; ".join(sorted(d["ds_types"])) if d["ds_types"] else "",
+                        )
                     )
-                )
-        repo_items = [r for r in sorted(set(repo_items)) if r]
-        repos_md = " ; ".join(repo_items) if repo_items else "(no repository info)"
+            repo_items = [r for r in sorted(set(repo_items)) if r]
+            repos_md = " ; ".join(repo_items) if repo_items else "(no repository info)"
 
-        dataset_url = (
-            f"https://explore.openaire.eu/search/dataset?datasetId={dataset_id}"
-        )
+            # OpenAIRE ID as clickable link
+            dataset_url = (
+                f"https://explore.openaire.eu/search/dataset?datasetId={dataset_id}"
+            )
 
-        lines.append(f"- **{title}** ({pub_str})  ")
-        lines.append(
-            f"  OpenAIRE Dataset ID: [{dataset_id}]({dataset_url})  "
-        )
-        if pid_md:
-            lines.append(f"  {label}: {pid_md}  ")
-        else:
-            lines.append(f"  {label}: *(no PID values found)*  ")
-        lines.append(f"  CZ organisations (short): `{org_short}`  ")
-        lines.append(f"  CZ organisations (full): `{org_names}`  ")
-        lines.append(f"  Repositories: {repos_md}\n")
-
+            lines.append(f"- **{title}** ({pub_str})  ")
+            lines.append(
+                f"  OpenAIRE Dataset ID: [{dataset_id}]({dataset_url})  "
+            )
+            if pid_md:
+                lines.append(f"  {label}: {pid_md}  ")
+            else:
+                lines.append(f"  {label}: *(no PID values found)*  ")
+            lines.append(f"  CZ organisations (short): `{org_short}`  ")
+            lines.append(f"  CZ organisations (full): `{org_names}`  ")
+            lines.append(f"  Repositories: {repos_md}\n")
 
     # --- Reproducibility notes ------------------------------------------
     lines.append("---\n")
