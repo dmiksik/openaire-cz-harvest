@@ -11,16 +11,17 @@ Source: `cz_pid_scheme_stats_full_vs_dedup.csv`.
 | pid_scheme | n_pids | n_affs | n_datasets_dedup | n_datasets_scheme_and_doi_dedup | n_datasets_non-doi_scheme_only |
 |-----------:|-------:|-------:|-----------------:|--------------------------------:|-------------------------------:|
 | doi       |  15 892 | 14 707 |           10 271 |                          10 271 |                              0 |
-| handle    |     223 |    556 |              197 |                             179 |                             18 |
+| handle    |     223 |    556 |              197 |                             179 |                         **18** |
 | mag_id    |      46 |     61 |               46 |                              46 |                              0 |
-| pmid      |      11 |     25 |               11 |                               0 |                             11 |
-| pmc       |       6 |     13 |                6 |                               0 |                              6 |
+| pmid      |      11 |     25 |               11 |                               0 |                         **11** |
+| pmc       |       6 |     13 |                6 |                               0 |                          **6** |
 | pdb       |       5 |      9 |                5 |                               5 |                              0 |
 
 Totals:
 
 - number of CZ affiliation rows in `cz_dataset_aff` (full, with duplicates): **14 799**
 - number of unique CZ datasets (distinct `dataset_id`): **10 315**
+- number of CZ datasets with only non-DOI PIDs is **35**
 
 ---
 
