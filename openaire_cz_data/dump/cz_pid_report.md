@@ -21,7 +21,7 @@ Totals:
 
 - number of CZ affiliation rows in `cz_dataset_aff` (full, with duplicates): **14 799**
 - number of unique CZ datasets (distinct `dataset_id`): **10 315**
-- number of CZ datasets with only non-DOI PIDs is **29**
+- number of CZ unique datasets with only non-DOI PIDs: **29**
 
 ---
 
