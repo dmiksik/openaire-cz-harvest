@@ -8,14 +8,14 @@ This page documents persistent identifier (PID) schemes used for datasets that a
 
 Source: `cz_pid_scheme_stats_full_vs_dedup.csv`.
 
-| pid_scheme | n_pid_rows | n_aff_rows_full | n_datasets_with_scheme_dedup | n_datasets_with_scheme_and_doi_dedup | n_datasets_with_non-doi_scheme_only |
-|-----------:|-----------:|----------------:|------------------------------:|--------------------------------------:|-------------------------------------:|
-| doi       |    15 892 |         14 707 |                       10 271 |                                 10 271 |                                     0 |
-| handle    |       223 |            556 |                          197 |                                    179 |                                    18 |
-| mag_id    |        46 |             61 |                           46 |                                     46 |                                     0 |
-| pmid      |        11 |             25 |                           11 |                                      0 |                                    11 |
-| pmc       |         6 |             13 |                            6 |                                      0 |                                     6 |
-| pdb       |         5 |              9 |                            5 |                                      5 |                                     0 |
+| pid_scheme | n_pids | n_affs | n_datasets_dedup | n_datasets_scheme_and_doi_dedup | n_datasets_non-doi_scheme_only |
+|-----------:|-------:|-------:|-----------------:|--------------------------------:|-------------------------------:|
+| doi       |  15 892 | 14 707 |           10 271 |                          10 271 |                              0 |
+| handle    |     223 |    556 |              197 |                             179 |                             18 |
+| mag_id    |      46 |     61 |               46 |                              46 |                              0 |
+| pmid      |      11 |     25 |               11 |                               0 |                             11 |
+| pmc       |       6 |     13 |                6 |                               0 |                              6 |
+| pdb       |       5 |      9 |                5 |                               5 |                              0 |
 
 Totals:
 
@@ -31,19 +31,19 @@ All counts are computed over datasets that have at least one affiliation to a Cz
 - **`pid_scheme`**  
   PID scheme as it appears in `dataset_pids.pid_scheme`, e.g. `doi`, `handle`, `pmid`, `pmc`, `pdb`, `mag_id`.
 
-- **`n_pid_rows`**  
+- **`n_pids`**  
   Number of PID rows in `dataset_pids` for the given `pid_scheme`, restricted to datasets that have at least one Czech affiliation. One row ≙ one `(dataset_id, pid_scheme, pid_value)` triple.
 
-- **`n_aff_rows_full`**  
+- **`n_affs`**  
   Number of affiliation rows (full, not deduplicated) for datasets that have at least one PID of the given scheme. Concretely: count of rows in `cz_dataset_aff` for all datasets that appear in `dataset_pids` with this `pid_scheme`. One row ≙ one `(dataset_id, CZ organisation)` pair.
 
-- **`n_datasets_with_scheme_dedup`**  
+- **`n_datasets_dedup`**  
   Number of **distinct datasets** that have at least one PID of the given scheme and at least one Czech affiliation. Each dataset is counted at most once per scheme, even if it has multiple PIDs of that scheme (e.g. multiple DOIs).
 
-- **`n_datasets_with_scheme_and_doi_dedup`**  
+- **`n_datasets_scheme_and_doi_dedup`**  
   Number of **distinct datasets** that have at least one PID of the given `pid_scheme` *and* at least one DOI (`pid_scheme = 'doi'`), and at least one Czech affiliation.
 
-- **`n_datasets_with_non-doi_scheme_only`**  
+- **`n_datasets_non-doi_scheme_only`**  
   Number of **distinct datasets** that have at least one PID of the given `pid_scheme`, have **no DOI** (`pid_scheme = 'doi'`), and at least one Czech affiliation.  
   By construction:
   ```text
