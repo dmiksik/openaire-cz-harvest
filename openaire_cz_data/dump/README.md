@@ -1,79 +1,107 @@
 # OpenAIRE Graph – CZ DuckDB working schema
 
-Tento dokument shrnuje, jaké tabulky jsou aktuálně v DuckDB databázi `openaire_10_6.duckdb` a k čemu slouží, se zaměřením na identifikaci datasetů s handle PIDy a CZ afiliací.
+This document describes the tables currently stored in the DuckDB database  
+`openaire_10_6.duckdb`, with a focus on:
 
-## 1. Základní tabulky z OpenAIRE Graphu
+- identifying datasets with Czech (CZ) affiliations,
+- working with different PID schemes (DOI, handle, …),
+- connecting datasets to repositories / datasources,
+- computing PID scheme statistics for CZ datasets.
+
+---
+
+## 1. Core OpenAIRE Graph tables
 
 ### `dataset`
 
-Produkty/datasety z OpenAIRE Graphu.
+Products/datasets from the OpenAIRE Graph.
 
-- **Počet řádků**: ~86 mil.
-- **Zdroje dat**: JSON dump `dataset/*.json.gz` z oficiálního OpenAIRE Graph dumpu.
-- **Důležité sloupce**:
-  - `id` – interní OpenAIRE ID produktu (např. `doi_dedup___::...`, `r3f52792889d::...`).
-  - `type` – typ produktu (pro nás typicky `dataset`).
-  - `mainTitle` – název datasetu.
-  - `publicationDate` – datum publikace (typ `DATE`).
-  - `publisher` – jméno vydavatele (pokud je).
-  - `pids` – pole PIDů: `STRUCT(scheme VARCHAR, "value" VARCHAR)[]`.
-    - Schémata: `doi`, `handle`, `uniprot`, `ena`, `pdb`, `mag_id`, `pmid`, `pmc`, `w3id`.
-  - `instances` – pole instancí datasetu (URL, přístupová práva, licence apod.).
-  - `originalIds` – původní identifikátory z harvestovaných zdrojů.
+- **Row count**: ~86 million (`COUNT(*) ≈ 86 236 354`)
+- **Source**: JSON dump `dataset/*.json.gz` from the official OpenAIRE Graph dump.
+- **Important columns**:
+  - `id` – internal OpenAIRE product ID  
+    (e.g. `doi_dedup___::…`, `r3f52792889d::…`, `475c1990cbb2::…`).
+  - `type` – product type (for us typically `dataset`).
+  - `mainTitle` – dataset title.
+  - `publicationDate` – publication date (`DATE`).
+  - `publisher` – publisher name (if present).
+  - `pids` – array of PIDs:
+    ```text
+    STRUCT(scheme VARCHAR, "value" VARCHAR)[]
+    ```
+    where `scheme` can be e.g.:
+    - `doi`, `handle`, `uniprot`, `ena`, `pdb`,
+    - `mag_id`, `pmid`, `pmc`, `w3id`.
+  - `instances` – array describing dataset instances (URLs, access rights, license, …).
+  - `originalIds` – original identifiers from source systems.
 
 ---
 
 ### `organization`
 
-Organizace z OpenAIRE.
+Organizations from OpenAIRE.
 
-- **Počet řádků**: ~448 tis.
-- **Důležité sloupce**:
-  - `id` – ID organizace (např. `openorgs____::...`, `pending_org_::...`).
-  - `legalShortName` – zkrácený název.
-  - `legalName` – plný název.
-  - `country` – struktura `STRUCT(code VARCHAR, "label" VARCHAR)`.
-  - `pids` – případné PIDy organizace (např. ROR).
+- **Row count**: ~448k (`COUNT(*) = 448 161`)
+- **Important columns**:
+  - `id` – organization ID  
+    (e.g. `openorgs____::…`, `pending_org_::…`).
+  - `legalShortName` – short name.
+  - `legalName` – full legal name.
+  - `country` – structure:
+    ```text
+    STRUCT(code VARCHAR, "label" VARCHAR)
+    ```
+  - `pids` – array of organization PIDs (e.g. ROR), if any.
 
 ---
 
 ### `datasource`
 
-Zdroje / repozitáře / CRISy evidované v OpenAIRE.
+Data sources / repositories / CRIS systems registered in OpenAIRE.
 
-- **Počet řádků**: ~157 tis.
-- **Důležité sloupce**:
-  - `id` – ID datasource (např. `openaire____::...`, `re3data_____::...`, `opendoar____::...`, `eurocrisdris::...`).
-  - `officialName` – oficiální název repozitáře/zdroje.
-  - `englishName` – anglický název (pokud je).
-  - `websiteUrl` – webová adresa zdroje.
-  - `type` – struktura `STRUCT(scheme VARCHAR, "value" VARCHAR)` – např. `Data Repository`, `Publication Repository`, `Regional CRIS` apod.
-  - další JSON sloupce pro politika, certifikace, PID systémy atd.
+- **Row count**: ~157k (`COUNT(*) = 157 392`)
+- **Important columns**:
+  - `id` – datasource ID  
+    (e.g. `openaire____::…`, `re3data_____::…`, `opendoar____::…`, `eurocrisdris::…`).
+  - `officialName` – official name of the repository/source.
+  - `englishName` – English name (if present).
+  - `websiteUrl` – website URL.
+  - `type` – structure
+    ```text
+    STRUCT(scheme VARCHAR, "value" VARCHAR)
+    ```
+    where `value` can be e.g. `Data Repository`, `Publication Repository`, `Regional CRIS`, …
+  - further JSON columns for policies, certifications, PID systems, etc.
 
 ---
 
 ### `relation`
 
-Orientované hrany grafu mezi uzly (produkty, organizace, datasourcy, komunity, …).
+Directed edges between nodes (products, organizations, datasources, communities, …).
 
-- **Počet řádků**: ~7,38 miliardy.
-- **Důležité sloupce**:
-  - `source`, `sourceType` – ID a typ zdrojového uzlu (`product`, `datasource`, `organization`, `community`, …).
-  - `target`, `targetType` – ID a typ cílového uzlu.
-  - `relType` – JSON objekt se strukturou `{"name": "...", "type": "..."}`.
-    - příklady:  
-      - `name = 'hasAuthorInstitution', type = 'affiliation'`  
-      - `name = 'isHostedBy', type = 'provision'`
-  - `provenance` – informuje o původu hrany (např. `Harvested`, `Inferred by OpenAIRE`).
-  - `validated`, `validationDate` – validační metadata (většinou nevyužita).
+- **Row count**: ~7.38 billion (`COUNT(*) = 7 378 579 759`)
+- **Important columns**:
+  - `source`, `sourceType` – ID and type of the source node  
+    (e.g. `product`, `datasource`, `organization`, `community`, …).
+  - `target`, `targetType` – ID and type of the target node.
+  - `relType` – JSON object
+    ```json
+    {"name": "...", "type": "..."}
+    ```
+    examples:
+    - `{"name": "hasAuthorInstitution", "type": "affiliation"}`
+    - `{"name": "isHostedBy", "type": "provision"}`
+  - `provenance` – information about the origin of the edge  
+    (e.g. `"Harvested"`, `"Inferred by OpenAIRE"`).
+  - `validated`, `validationDate` – validation metadata (mostly unused in practice).
 
 ---
 
-## 2. Pomocné tabulky pro CZ organizace a PIDy
+## 2. Helper tables for CZ organizations and PIDs
 
 ### `cz_org`
 
-Podmnožina `organization` obsahující pouze organizace v ČR.
+Subset of `organization` containing only organizations located in Czechia.
 
 ```sql
 CREATE TABLE cz_org AS
@@ -87,57 +115,38 @@ FROM organization
 WHERE country.code = 'CZ';
 ````
 
-* **Počet řádků**: 5 007.
-* **Obsah**: všechny organizace s `country.code = 'CZ'`.
+* **Row count**: 5 007
+* **Content**: all organizations with `country.code = 'CZ'`.
 
 ---
 
 ### `dataset_pids`
 
-Rozbalené PIDy z pole `dataset.pids`.
+Expanded PIDs extracted from `dataset.pids`.
+This is the main generic table for all PID-scheme analyses.
 
 ```sql
 CREATE TABLE dataset_pids AS
 SELECT
-  d.id       AS dataset_id,
-  pid.scheme AS pid_scheme,
-  pid.value  AS pid_value
+  d.id        AS dataset_id,
+  pid.scheme  AS pid_scheme,
+  pid.value   AS pid_value
 FROM dataset d,
 UNNEST(d.pids) AS t(pid);
 ```
 
-* **Počet řádků**: 89 962 856.
-* **Důležité schéma**:
+* **Row count**: 89 962 856
+* **Schema**:
 
-  * `dataset_id` – odkaz na `dataset.id`.
-  * `pid_scheme` – např. `doi`, `handle`, `uniprot`, `ena`, `pdb`, `mag_id`, `pmid`, `pmc`, `w3id`.
-  * `pid_value` – konkrétní hodnota PID (např. `10.1234/abcd`, `10261/360124`, `20.500.14352/118657`).
-
-Tohle je univerzální tabulka pro analýzy podle PID schémat.
-
----
-
-### `dataset_handles`
-
-Datasety, které mají handle PID.
-
-```sql
-CREATE TABLE dataset_handles AS
-SELECT
-  dataset_id,
-  pid_value AS handle
-FROM dataset_pids
-WHERE pid_scheme = 'handle';
-```
-
-* **Počet řádků**: 147 627.
-* **Obsah**: pouze záznamy s `pid_scheme = 'handle'`.
+  * `dataset_id` – reference to `dataset.id`.
+  * `pid_scheme` – e.g. `doi`, `handle`, `uniprot`, `ena`, `pdb`, `mag_id`, `pmid`, `pmc`, `w3id`.
+  * `pid_value` – concrete PID value (e.g. `10.1234/abcd`, `10261/360124`, `20.500.14352/118657`).
 
 ---
 
 ### `cz_dataset_aff`
 
-CZ-afiliované produkty/datasety podle OpenAIRE relace `hasAuthorInstitution`.
+CZ-affiliated products/datasets based on the OpenAIRE relation `hasAuthorInstitution`.
 
 ```sql
 CREATE TABLE cz_dataset_aff AS
@@ -152,20 +161,46 @@ WHERE r.sourceType = 'product'
   AND json_extract_string(r.relType, '$.name') = 'hasAuthorInstitution';
 ```
 
-* **Počet řádků**: 14 799.
-* **Obsah**:
+* **Row count**: 14 799
+* **Interpretation**:
 
-  * `dataset_id` – produkt/dataset v OpenAIRE Graphu.
-  * `org_id` – CZ organizace (`cz_org.id`).
-* Každý pár říká, že daný produkt má autora afiliovaného v dané CZ organizaci.
+  * each row represents one *(dataset, CZ organization)* pair,
+  * a single dataset may have multiple CZ affiliations ⇒ multiple rows here.
+* **Derived counts**:
+
+  * `COUNT(*) = 14 799` – **“full” view**: the number of all (dataset, CZ organization) pairs,
+  * `COUNT(DISTINCT dataset_id) = 10 315` – number of **unique CZ datasets** in the OpenAIRE Graph (deduplicated view).
+
+This **full vs. dedup** distinction is reused in the PID statistics.
 
 ---
 
-## 3. Handle-specifické tabulky (CZ + handle + repozitáře)
+## 3. Handle-specific tables (CZ + handle + repositories)
+
+These tables belong to the first analysis phase that focused specifically on handle PIDs.
+Later tables (sections 4 and 5) generalize to arbitrary PID schemes.
+
+### `dataset_handles`
+
+All datasets (globally) that have a handle PID.
+
+```sql
+CREATE TABLE dataset_handles AS
+SELECT
+  dataset_id,
+  pid_value AS handle
+FROM dataset_pids
+WHERE pid_scheme = 'handle';
+```
+
+* **Row count**: 147 627
+* **Content**: only rows with `pid_scheme = 'handle'`.
+
+---
 
 ### `cz_dataset_handles`
 
-CZ-afiliované produkty, které mají zároveň handle PID.
+CZ-affiliated products that also have a handle PID.
 
 ```sql
 CREATE TABLE cz_dataset_handles AS
@@ -177,18 +212,19 @@ FROM cz_dataset_aff a
 JOIN dataset_handles h ON h.dataset_id = a.dataset_id;
 ```
 
-* **Počet řádků**: 635.
-* **Obsah**:
+* **Row count**: 635
+* **Content**:
 
-  * `dataset_id` – produkt/dataset.
-  * `handle` – hodnota handle PIDu (typicky `10261/...`, `20.500....`, někdy přímo URL `https://hdl.handle.net/...`).
-  * `org_id` – CZ organizace, ke které je dataset afiliován.
+  * `dataset_id` – product/dataset,
+  * `handle` – handle PID (e.g. `10261/...`, `20.500....`, or sometimes directly a URL `https://hdl.handle.net/...`),
+  * `org_id` – CZ organization to which the dataset is affiliated.
 
 ---
 
 ### `cz_dataset_ids`
 
-Pomocná tabulka se seznamem datasetů (produkty), které jsou CZ-afiliované a mají handle.
+Helper table with the list of datasets (products) that are CZ-affiliated **and** have a handle PID.
+*(Historical name – this table is handle-specific; for the generalized version see `cz_dataset_ids_all` in section 4.)*
 
 ```sql
 CREATE TABLE cz_dataset_ids AS
@@ -196,14 +232,15 @@ SELECT DISTINCT dataset_id
 FROM cz_dataset_handles;
 ```
 
-* **Počet řádků**: ≤ 635.
-* Používá se k omezení dotazů na `relation` při hledání hostujících datasourců.
+* **Row count**: ≤ 635
+* **Usage**: restricts `relation` queries to “CZ + handle” datasets when finding hosting datasources.
 
 ---
 
 ### `cz_dataset_datasource`
 
-Hostující datasourcy (`datasource`) pro CZ-afiliované datasety s handle PIDy.
+Hosting datasources for CZ-affiliated datasets with handle PIDs.
+*(Handle-specific version; for the generalized variant see `cz_dataset_datasource_all` in section 4.)*
 
 ```sql
 CREATE TABLE cz_dataset_datasource AS
@@ -217,17 +254,17 @@ WHERE r.sourceType = 'product'
   AND json_extract_string(r.relType, '$.name') = 'isHostedBy';
 ```
 
-* **Počet řádků**: 402.
-* **Obsah**:
+* **Row count**: 402
+* **Content**:
 
-  * `dataset_id` – dataset s handle a CZ afiliací.
-  * `datasource_id` – ID repozitáře / zdroje (`datasource.id`), který dataset hostuje (`isHostedBy`).
+  * `dataset_id` – handle + CZ-affiliated dataset,
+  * `datasource_id` – repository/source ID (`datasource.id`) that *hosts* the dataset (`isHostedBy`).
 
 ---
 
 ### `cz_handles_enriched`
 
-„Plná“ tabulka: CZ datasety s handle PIDem + CZ organizace + hostující repozitáře.
+“Full” table: CZ datasets with handle PIDs + CZ organizations + hosting repositories.
 
 ```sql
 CREATE TABLE cz_handles_enriched AS
@@ -251,23 +288,23 @@ LEFT JOIN cz_dataset_datasource cd ON cd.dataset_id = h.dataset_id
 LEFT JOIN datasource          ds  ON ds.id = cd.datasource_id;
 ```
 
-* **Počet řádků**: 1 275.
-* **Důvod vyššího počtu než 635**:
+* **Row count**: 1 275
+* **Why more than 635 rows?**
 
-  * dataset může mít více CZ afiliovaných organizací,
-  * dataset může být spojen s více datasourcy.
-* **Obsah**:
+  * one dataset can be affiliated with multiple CZ organizations,
+  * one dataset can be linked to multiple datasources.
+* **Content**:
 
-  * identita datasetu + handle (`dataset_id`, `handle`),
-  * základní metadata datasetu (`mainTitle`, `publicationDate`),
-  * CZ organizace (`org_short_name`, `org_name`, `org_country`),
-  * hostující repozitář (`datasource_id`, `datasource_name`, `datasource_eng_name`, `datasource_url`, `datasource_type`).
+  * dataset identity + handle (`dataset_id`, `handle`),
+  * basic dataset metadata (`mainTitle`, `publicationDate`),
+  * CZ institution (`org_short_name`, `org_name`, `org_country`),
+  * hosting datasource (`datasource_id`, `datasource_name`, `datasource_eng_name`, `datasource_url`, `datasource_type`).
 
 ---
 
 ### `cz_handles_enriched_dedup`
 
-Deduplicovaná verze výše – maximálně jedna řádka pro každou dvojici `(dataset_id, handle)`.
+Deduplicated version of the above – at most one row per `(dataset_id, handle)`.
 
 ```sql
 CREATE TABLE cz_handles_enriched_dedup AS
@@ -284,20 +321,20 @@ FROM (
 WHERE rn = 1;
 ```
 
-* **Počet řádků**: `COUNT(DISTINCT dataset_id, handle)` (jedna řádka na dataset + handle).
-* **Struktura**: stejné sloupce jako `cz_handles_enriched`, jen bez pomocného `rn`.
-* **Použití**:
+* **Row count**: `COUNT(DISTINCT dataset_id, handle)` – i.e. one row per dataset + handle.
+* **Schema**: same columns as `cz_handles_enriched`, without the helper `rn`.
+* **Usage**:
 
-  * export „jedna řádka na dataset+handle“ do CSV,
-  * další enrichment (např. DOI).
+  * exporting “one row per dataset+handle” CSV,
+  * subsequent enrichment (e.g. adding DOI info).
 
 ---
 
 ### `cz_handles_enriched_dedup_with_doi`
 
-Deduplicovaná tabulka handle-datasetů doplněná o informaci, zda má dataset také DOI a jaké.
+Deduplicated handle-dataset table enriched with whether and which DOIs the dataset has.
 
-Vznikla dotazem typu:
+It was built via a query of this form:
 
 ```sql
 CREATE TABLE cz_handles_enriched_dedup_with_doi AS
@@ -318,28 +355,189 @@ SELECT
 FROM cz_handles_enriched_dedup h;
 ```
 
-* **Sloupce navíc**:
+* **Additional columns**:
 
-  * `doi_list` – seznam všech DOI pro daný dataset (oddělený `;`), nebo `NULL`, pokud dataset žádný DOI nemá.
-  * `has_doi` – `TRUE`/`FALSE` (resp. 1/0) podle toho, zda existuje alespoň jeden DOI PID.
+  * `doi_list` – semicolon-separated list of all DOIs for the dataset, or `NULL` if none.
+  * `has_doi` – boolean flag (`TRUE`/`FALSE`) indicating presence of at least one DOI.
+* **Usage**:
 
-* **Použití**:
-
-  * rychlá filtrace handle-datasetů s/bez DOI,
-  * analýzy typu „kolik CZ handle-datasetů má paralelně také DOI a v jakých repozitářích“.
+  * quick filtering of handle datasets with / without DOI,
+  * analyses like “how many CZ handle datasets also have DOI, and in which repositories”.
 
 ---
 
-## 4. CSV exporty pro další práci
+## 4. General CZ dataset / datasource tables (PID-agnostic)
 
-Pro další práci se používají CSV exporty uložené v repozitáři pod:
+In the next phase we generalized CZ dataset handling so it’s not tied to handle PIDs only, but works for any PID scheme.
 
-`openaire_cz_data/dump/`
+### `cz_dataset_ids_all`
 
-Typicky zahrnují:
+All unique CZ datasets (regardless of which PIDs they have).
 
-* **„full“ exporty** s více řádků na dataset (kvůli vícenásobným CZ institucím a více datasourcům),
-* **„dedup“ exporty** ve smyslu „maximálně jedna řádka na `(dataset_id, handle)`“,
-* a u deduplikované verze i informaci o existenci a hodnotách DOI (`doi_list`, `has_doi`).
+```sql
+CREATE TABLE cz_dataset_ids_all AS
+SELECT DISTINCT dataset_id
+FROM cz_dataset_aff;
+```
 
-Konkrétní soubory v tomto adresáři odrážejí aktuální stav analýzy (např. deduplikované handle datasety s DOI enrichmentem) a slouží jako stabilní vstupy pro další nástroje (Python notebooky, R skripty, dashboardy atd.).
+* **Row count**: 10 315
+* **Content**: one row per dataset with at least one CZ affiliation.
+
+---
+
+### `cz_dataset_datasource_all`
+
+Hosting datasources for **all** CZ datasets (not just those with handle PIDs).
+
+```sql
+CREATE TABLE cz_dataset_datasource_all AS
+SELECT DISTINCT
+  r.source AS dataset_id,
+  r.target AS datasource_id
+FROM relation r
+JOIN cz_dataset_ids_all z ON z.dataset_id = r.source
+WHERE r.sourceType = 'product'
+  AND r.targetType = 'datasource'
+  AND json_extract_string(r.relType, '$.name') = 'isHostedBy';
+```
+
+* **Content**:
+
+  * `dataset_id` – any CZ dataset (same set as `cz_dataset_ids_all`),
+  * `datasource_id` – ID of the repository/source (`datasource.id`) that hosts the dataset.
+
+These tables are used as the general basis for PID-agnostic CZ analyses (incl. non-DOI schemes).
+
+---
+
+## 5. PID scheme statistics for CZ datasets
+
+### `cz_pid_scheme_stats`
+
+Summary statistics of PID schemes for CZ datasets.
+
+Built conceptually as follows:
+
+1. Take all `dataset_pids` where `dataset_id` appears in `cz_dataset_aff`
+   (i.e. datasets with at least one CZ affiliation).
+2. For each PID scheme (`pid_scheme`) compute:
+
+   * how many PID occurrences exist,
+   * how many affiliation rows exist,
+   * how many unique datasets use the scheme,
+   * how many of these also have DOI,
+   * the relative shares.
+
+The resulting table contains (among others) these columns:
+
+* `pid_scheme` – e.g. `doi`, `handle`, `mag_id`, `pmid`, `pmc`, `pdb`.
+* `n_pid_rows`
+  – number of rows in `dataset_pids` for the given scheme and CZ datasets
+  (= **number of (dataset, PID) pairs** of that scheme).
+* `n_aff_rows_full`
+  – number of rows in `cz_dataset_aff` that belong to datasets using this scheme
+  (= full view: datasets with multiple CZ institutions contribute multiple rows).
+* `n_datasets_with_scheme_dedup`
+  – number of **unique CZ datasets** (`dataset_id`) that have at least one PID of this scheme.
+* `n_datasets_with_scheme_and_doi_dedup`
+  – number of unique CZ datasets that have this scheme **and** at least one DOI PID.
+* `share_datasets_of_all_dedup`
+  – `n_datasets_with_scheme_dedup` divided by the total number of CZ datasets (10 315).
+* `share_aff_rows_of_all_full`
+  – `n_aff_rows_full` divided by the total number of rows in `cz_dataset_aff` (14 799).
+
+From this table we export a CSV:
+
+### `cz_pid_scheme_stats_full_vs_dedup.csv`
+
+Export including one derived column:
+
+* `n_datasets_with_non-doi_scheme_only = n_datasets_with_scheme_dedup - n_datasets_with_scheme_and_doi_dedup`
+
+CSV header:
+
+```text
+pid_scheme,
+n_pid_rows,
+n_aff_rows_full,
+n_datasets_with_scheme_dedup,
+n_datasets_with_scheme_and_doi_dedup,
+n_datasets_with_non-doi_scheme_only
+```
+
+Current values (from the CSV):
+
+| pid_scheme | n_pid_rows | n_aff_rows_full | n_datasets_with_scheme_dedup | n_datasets_with_scheme_and_doi_dedup | n_datasets_with_non-doi_scheme_only |
+| ---------: | ---------: | --------------: | ---------------------------: | -----------------------------------: | ----------------------------------: |
+|        doi |     15 892 |          14 707 |                       10 271 |                               10 271 |                                   0 |
+|     handle |        223 |             556 |                          197 |                                  179 |                                  18 |
+|     mag_id |         46 |              61 |                           46 |                                   46 |                                   0 |
+|       pmid |         11 |              25 |                           11 |                                    0 |                                  11 |
+|        pmc |          6 |              13 |                            6 |                                    0 |                                   6 |
+|        pdb |          5 |               9 |                            5 |                                    5 |                                   0 |
+
+Interpretation:
+
+* **`n_pid_rows`**
+  – number of PID occurrences of the scheme on CZ datasets (rows in `dataset_pids`).
+
+* **`n_aff_rows_full`**
+  – number of rows in `cz_dataset_aff` (dataset × CZ institution) that belong to datasets using this scheme.
+
+* **`n_datasets_with_scheme_dedup`**
+  – number of unique CZ datasets that have at least one PID of this scheme.
+
+* **`n_datasets_with_scheme_and_doi_dedup`**
+  – number of unique CZ datasets that have this scheme **and** at least one DOI.
+
+* **`n_datasets_with_non-doi_scheme_only`**
+  – number of unique CZ datasets that have this scheme **and do not have any DOI**
+  (= “pure non-DOI” datasets with respect to this scheme).
+
+On top of this table, a Markdown summary was generated:
+
+* an introductory summary table (Markdown rendering of `cz_pid_scheme_stats_full_vs_dedup.csv`),
+* textual explanation of each column,
+* lists of datasets that only have non-DOI PIDs (i.e. `n_datasets_with_non-doi_scheme_only`), grouped by scheme (handle-only, pmid-only, pmc-only), with clickable URLs.
+
+---
+
+## 6. CSV exports for further work
+
+CSV exports are stored in the repository under:
+
+```text
+openaire_cz_data/dump/
+```
+
+Typically there are:
+
+* **“full” exports**
+  – multiple rows per dataset (because of multiple CZ institutions and/or multiple datasources).
+
+* **“dedup” exports**
+  – deduplicated records, usually “at most one row per (dataset_id, PID value)”
+  or extended with DOI flags.
+
+Examples of key files:
+
+* `cz_handles_enriched_full.csv`
+  – full export of CZ datasets with handle PIDs
+  (multiple rows per dataset due to multiple CZ institutions / datasources).
+
+* `cz_handles_enriched_dedup_with_doi.csv`
+  – deduplicated export of CZ handle datasets
+  (“one row per dataset + handle”), enriched with:
+
+  * `doi_list` – list of DOIs,
+  * `has_doi` – boolean indicator.
+
+* `cz_pid_scheme_stats_full_vs_dedup.csv`
+  – aggregated PID scheme statistics for CZ datasets (see section 5).
+
+* Markdown listing of datasets with only non-DOI PIDs
+  – summary table plus lists of concrete datasets grouped by PID scheme.
+
+These files serve as **stable inputs** for downstream tooling
+(Python notebooks, R scripts, dashboards, …), so that heavy queries
+against the 250+ GiB DuckDB database do not have to be rerun every time.
