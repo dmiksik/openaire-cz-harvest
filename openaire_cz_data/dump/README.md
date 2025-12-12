@@ -8,7 +8,7 @@ This document describes the tables currently stored in the DuckDB database
 - connecting datasets to repositories / datasources,
 - computing PID scheme statistics for CZ datasets.
 
-The database is available for download usign this [link](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=Mw%2BbHUGf1CRlv8Labk1BRSgUubk%3D&Expires=1767979074), its size is **256 GB**; sha256 checksum is available [here](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=RIaIoWmTCxWlUfxjVQ3w8tupNLs%3D&Expires=1767958914).  
+The database is available for download usign this [link](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=Mw%2BbHUGf1CRlv8Labk1BRSgUubk%3D&Expires=1767979074), its size is **256 GB**; sha256 checksum is available [here](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb.sha256?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=WKpQe1tCquT25MN9NkJQUulW6oI%3D&Expires=1767979826).  
 For info on querying the db directly, see the [how-to](#how-to-query-the-shared-openaire-duckdb-from-s3-read-only) at the bottom of this page.
 
 ## 1. Core OpenAIRE Graph tables
