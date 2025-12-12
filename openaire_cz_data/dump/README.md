@@ -554,7 +554,7 @@ against the 250+ GiB DuckDB database do not have to be rerun every time.
     ```
 - Internet access to the CESNET S3 endpoint.
 
-You will get from Daniel a **pre-signed URL** to the database file, looking roughly like:
+You got a **pre-signed URL** to the database file, looking roughly like:
 
 ```text
 https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?...signature-and-expires...
