@@ -627,5 +627,5 @@ LIMIT 20;
   For heavy analysis, it may be more efficient to **download the `.duckdb` file once** and work locally.
 * The database is attached as **READ_ONLY** – this is intentional, so nobody can accidentally modify the shared snapshot.
 * The pre-signed URL may **expire**.
-  If you suddenly get `AccessDenied` or similar errors, ask Daniel for a fresh URL.
+  If you suddenly get `AccessDenied` or similar errors, ask for a fresh URL.
 
