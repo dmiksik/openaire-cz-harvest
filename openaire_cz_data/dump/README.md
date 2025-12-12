@@ -8,6 +8,8 @@ This document describes the tables currently stored in the DuckDB database
 - connecting datasets to repositories / datasources,
 - computing PID scheme statistics for CZ datasets.
 
+The database is available for download usign this [link](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=RIaIoWmTCxWlUfxjVQ3w8tupNLs%3D&Expires=1767958914), its size is 256 GB; sha256 checksum is available [here](https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?AWSAccessKeyId=G53582KZZG0YBSMOWTNS&Signature=RIaIoWmTCxWlUfxjVQ3w8tupNLs%3D&Expires=1767958914). 
+
 ---
 
 ## 1. Core OpenAIRE Graph tables
