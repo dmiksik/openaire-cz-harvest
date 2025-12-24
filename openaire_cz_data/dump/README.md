@@ -632,3 +632,231 @@ LIMIT 20;
 * The pre-signed URL may **expire**.
   If you suddenly get `AccessDenied` or similar errors, ask for a fresh URL.
 
+## 5. Institution–author–dataset exports
+
+This folder contains three CSV exports that combine information about
+Czech-affiliated datasets, their institutions, and their authors, using
+both **OpenAIRE Graph 10.6.0** and **DataCite** as sources.
+
+All three files work with the same basic concepts:
+
+- **“CZ dataset” (OpenAIRE side)** – a dataset that has at least one
+  affiliation in `cz_dataset_aff` (i.e. linked in OpenAIRE to an
+  organization with country code `CZ`).
+- **Institution** – taken from the OpenAIRE `organization` table via the
+  helper table `cz_org_with_ror`; whenever possible we attach a
+  **ROR ID** for the institution.
+- **Author** – taken either
+  - from **DataCite** (`datacite.datacite_creators` +
+    `datacite.datacite_creator_affiliations`), where authors are already
+    explicitly linked to ROR-based affiliations, or
+  - from **OpenAIRE** (`dataset.authors`), where all authors and all
+    affiliations are “flattened” and we cannot reliably say which author
+    belongs to which institution.
+- **PIDs** – collected from the OpenAIRE `dataset_pids` table and
+  aggregated per dataset into a single string:
+  `scheme:value, scheme:value, …`  
+  (e.g. `doi:10.5061/dryad.332dj, handle:123456789/12345, pmid:12345678`),
+  with DOIs listed first.
+
+### `cz_datacite_institution_author_datasets.csv`
+
+**Granularity**
+
+One row ≈ one **(institution, author, DOI)** triple coming from
+**DataCite**, optionally enriched by the corresponding OpenAIRE dataset.
+
+Only DataCite records that carry at least one **Czech ROR** in their
+affiliations are included.
+
+**Columns**
+
+- `institution` – short name of the Czech institution
+  (`cz_org.legalShortName`), e.g. `Charles University`, `CRI`, `JČU`.
+- `institution_full` – full legal name
+  (`cz_org.legalName`).
+- `institution_ror` – ROR ID of the institution, if known, e.g.
+  `https://ror.org/024d6js02`.
+- `dataset_id` – OpenAIRE `dataset.id` if we could match this DOI to an
+  OpenAIRE product; otherwise **NULL** (DataCite-only records).
+- `doi` – DOI string as given in the DataCite JSON (concept DOI in the
+  “concept” input, version DOI in the “full” input, depending on which
+  JSONL was loaded).
+- `creator_order` – position of the author in the DataCite `creators[]`
+  array (1-based).
+- `given_name` – DataCite `givenName` (if present).
+- `family_name` – DataCite `familyName` (if present).
+- `author_name` – simple concatenation `given_name || ' ' || family_name`
+  for convenience.
+- `orcid` – ORCID iD of the author, if present in DataCite
+  (`nameIdentifiers`), otherwise empty.
+- `pids` – aggregated list of all PIDs for the matched OpenAIRE dataset,
+  or empty if we did not find a corresponding OpenAIRE `dataset_id`
+  for this DOI.
+
+**How it is built (high-level)**
+
+1. DataCite JSONL is loaded into `datacite.datacite_dois_raw`.
+2. Creator records and their ROR-based affiliations are flattened into
+   `datacite.datacite_creators` and
+   `datacite.datacite_creator_affiliations`.
+3. A mapping `cz_datacite_dataset_map` links (normalised) DOIs from
+   DataCite to OpenAIRE `dataset_id` via `dataset_pids`.
+4. `cz_org_with_ror` provides the mapping from ROR → Czech institutions.
+5. `cz_dataset_pid_list` aggregates all PIDs for each CZ dataset.
+6. `cz_datacite_institution_author_datasets` combines all of the above:
+   for each (DOI, creator, affiliation ROR) it attaches the matching CZ
+   institution, OpenAIRE `dataset_id` (if any), ORCID, and the aggregated
+   PID list.
+
+**Typical use**
+
+- “Clean” view of how DataCite itself sees **CZ-related datasets**:
+  which authors and which ROR-identified institutions are attached to a
+  DOI, with OpenAIRE context added where possible.
+- Good starting point if you trust DataCite’s affiliation modelling and
+  want an author–institution–DOI matrix that is not influenced by
+  OpenAIRE’s more approximate affiliation logic.
+
+---
+
+### `cz_institution_author_datasets.csv`
+
+**Granularity**
+
+One row ≈ one **(institution, author, dataset)** triple **backed by an
+OpenAIRE dataset_id**.
+
+This file only contains rows where we *do* know the OpenAIRE dataset
+(`dataset_id` is not NULL). It merges:
+
+- DataCite-backed affiliations (where a DOI could be matched to an
+  OpenAIRE dataset), and
+- OpenAIRE-only datasets (CZ datasets that have no matching DOI in the
+  DataCite input), using authors and affiliations directly from the
+  OpenAIRE Graph dump.
+
+In other words: this is the “safe core” view if you want to be sure that
+every row corresponds to a product present in `dataset` and
+`dataset_pids`.
+
+**Columns**
+
+The exact header mirrors the underlying table
+`cz_institution_author_datasets`, but conceptually the columns are:
+
+- `institution` – short name of the institution (as above).
+- `institution_full` – full legal name.
+- `institution_ror` – ROR ID of the institution (if known).
+- `dataset_id` – OpenAIRE dataset identifier (always filled in this CSV).
+- `doi` – DOI if known:
+  - for rows coming from DataCite: DOI from DataCite (matching OpenAIRE);
+  - for rows coming only from OpenAIRE: the DOI from `dataset_pids`
+    (if any; may be empty if the dataset has only non-DOI PIDs).
+- `creator_order` – author order (from DataCite where available, from
+  OpenAIRE `authors.rank` otherwise).
+- `given_name` / `family_name` / `author_name` – author information;
+  for OpenAIRE-only rows `given_name` may be empty and we rely on
+  `author_name` and/or `family_name`.
+- `orcid` – ORCID if present (either from DataCite or from
+  `dataset.authors[].pid` in OpenAIRE).
+- `pids` – aggregated PID list for the OpenAIRE dataset:
+  `scheme:value, scheme:value, …`  
+  (can contain DOI, handle, pmid, pmc, etc.).
+
+Depending on how you exported it, there may or may not be an
+`affiliation_source` column; if it is present, values are:
+
+- `datacite` – row is primarily based on DataCite affiliations.
+- `openaire` – row is based only on OpenAIRE metadata.
+
+**How it is built (high-level)**
+
+- Start from `cz_datacite_institution_author_datasets` (only rows with a
+  non-NULL `dataset_id`).
+- Add `cz_openaire_only_institution_author_datasets`, i.e. datasets that:
+  - appear in `cz_dataset_aff` (CZ affiliation),
+  - have no matching DOI in the DataCite input, and
+  - have authors in `dataset.authors`.
+- For both parts, attach the aggregated PID list from
+  `cz_dataset_pid_list`.
+
+**Typical use**
+
+- “Best effort” **institution–author–dataset list** for CZ datasets,
+  restricted to products that actually exist in the OpenAIRE Graph
+  database.
+- Suitable for:
+  - institutional overviews (“which datasets are linked to our ROR, and
+    which authors are involved?”),
+  - counting datasets per (institution, author),
+  - further joining on `dataset_id` to other OpenAIRE tables.
+
+---
+
+### `cz_institution_author_datasets_all.csv`
+
+**Granularity**
+
+One row ≈ one **(institution, author, dataset/DOI)** triple, for *all*
+CZ-related datasets we can see in either OpenAIRE or DataCite.
+
+This file is a **superset** of `cz_institution_author_datasets.csv`:
+
+- it includes all rows backed by an OpenAIRE `dataset_id` (same as the
+  previous file), **plus**
+- **DataCite-only** rows: DOIs that have Czech ROR affiliations in
+  DataCite but that we could not match to any product in the OpenAIRE
+  dump.
+
+These DataCite-only rows are exactly the ones where:
+
+- `dataset_id` is empty,
+- `pids` is empty, and
+- `doi` is filled.
+
+That explains why you see some rows with neither DOI-based nor
+non-DOI PIDs in the `pids` column: for those DOIs, there is no matching
+OpenAIRE product in the version 10.6.0 dump.
+
+**Columns**
+
+Same as in `cz_institution_author_datasets.csv`, typically including:
+
+- `institution`
+- `institution_full`
+- `institution_ror`
+- `dataset_id` (may be NULL for DataCite-only rows)
+- `doi`
+- `creator_order`
+- `given_name`
+- `family_name`
+- `author_name`
+- `orcid`
+- `pids` (may be empty if there is no OpenAIRE match)
+- `affiliation_source` – explicitly tells you where the row comes from:
+  - `datacite` – derived from DataCite creators + ROR affiliations;
+    `dataset_id`/`pids` may or may not be present depending on OpenAIRE
+    coverage;
+  - `openaire` – derived only from OpenAIRE (`dataset`, `dataset_pids`,
+    `dataset.authors`, `cz_dataset_aff`, `cz_org_with_ror`).
+
+**How it is built (high-level)**
+
+- Union of:
+  - all rows from `cz_datacite_institution_author_datasets`
+    (DataCite-backed, including DOIs without any OpenAIRE product), and
+  - all rows from `cz_openaire_only_institution_author_datasets`.
+- Column `affiliation_source` is used to keep the provenance of the
+  affiliation information.
+
+**Typical use**
+
+- “Maximal coverage” view of CZ-related datasets and authors from **both
+  DataCite and OpenAIRE**, regardless of whether a given DOI appears in
+  the OpenAIRE Graph dump.
+- Good for:
+  - sanity-checking coverage of OpenAIRE vs DataCite (e.g. which DOIs
+    with CZ RORs are **missing** from the OpenAIRE dump),
+  - building lists of CZ-related datasets where OpenAIRE coverage is
+    incomplete or lagging.
