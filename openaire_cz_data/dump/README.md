@@ -546,95 +546,7 @@ These files serve as **stable inputs** for downstream tooling
 (Python notebooks, R scripts, dashboards, …), so that heavy queries
 against the 250+ GiB DuckDB database do not have to be rerun every time.
 
-# How to query the shared OpenAIRE DuckDB from S3 (read-only)
-
-## 1. Prerequisites
-
-- DuckDB **CLI** installed (version **1.1.3 or newer**)
-  - Check with:
-    ```bash
-    duckdb --version
-    ```
-- Internet access to the CESNET S3 endpoint.
-
-You got a **pre-signed URL** to the database file, looking roughly like:
-
-```text
-https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?...signature-and-expires...
-````
-
-> ⚠️ Treat this URL as sensitive (it contains an access token).
-> Do **not** publish it publicly or commit it to Git.
-
----
-
-## 2. Open DuckDB and attach the remote database
-
-Start DuckDB (without opening any local file):
-
-```bash
-duckdb
-```
-
-Then, inside the DuckDB prompt, run:
-
-```sql
-INSTALL httpfs;
-LOAD httpfs;
-
--- reset S3-related settings (just to be safe)
-RESET s3_endpoint;
-RESET s3_access_key_id;
-RESET s3_secret_access_key;
-
--- attach the remote database in READ ONLY mode
-ATTACH '<PRESIGNED_URL>' AS openaire (READ_ONLY);
-
--- switch to the attached database
-USE openaire;
-
--- sanity checks
-SHOW TABLES;
-SELECT COUNT(*) FROM dataset;
-SELECT COUNT(*) FROM cz_org;
-```
-
-Replace `<PRESIGNED_URL>` with the full pre-signed URL you received.
-
-If `SHOW TABLES;` works and the example `SELECT` returns a number, the connection is fine and you can start running your own queries.
-
----
-
-## 3. Example queries
-
-A few simple examples:
-
-```sql
--- list CZ organisations
-SELECT * FROM cz_org LIMIT 20;
-
--- see PID scheme stats
-SELECT * FROM cz_pid_scheme_stats;
-
--- show some CZ handle records (deduplicated)
-SELECT *
-FROM cz_handles_enriched_dedup
-LIMIT 20;
-```
-
----
-
-## 4. Notes and recommendations
-
-* The database is ~250 GiB and is accessed over the network.
-  For heavy analysis, it may be more efficient to **download the `.duckdb` file once** and work locally.
-* The database is attached as **READ_ONLY** – this is intentional, so nobody can accidentally modify the shared snapshot.
-* The pre-signed URL may **expire**.
-  If you suddenly get `AccessDenied` or similar errors, ask for a fresh URL.
-
-## 5. Institution–author–dataset exports
-
-This folder contains three CSV exports that combine information about
+The folder also contains three CSV exports that combine information about
 Czech-affiliated datasets, their institutions, and their authors, using
 both **OpenAIRE Graph 10.6.0** and **DataCite** as sources.
 
@@ -860,3 +772,91 @@ Same as in `cz_institution_author_datasets.csv`, typically including:
     with CZ RORs are **missing** from the OpenAIRE dump),
   - building lists of CZ-related datasets where OpenAIRE coverage is
     incomplete or lagging.
+
+
+# How to query the shared OpenAIRE DuckDB from S3 (read-only)
+
+## 1. Prerequisites
+
+- DuckDB **CLI** installed (version **1.1.3 or newer**)
+  - Check with:
+    ```bash
+    duckdb --version
+    ```
+- Internet access to the CESNET S3 endpoint.
+
+You got a **pre-signed URL** to the database file, looking roughly like:
+
+```text
+https://s3.cl4.du.cesnet.cz/openaire-10-6-duckdb/openaire_10_6.duckdb?...signature-and-expires...
+````
+
+> ⚠️ Treat this URL as sensitive (it contains an access token).
+> Do **not** publish it publicly or commit it to Git.
+
+---
+
+## 2. Open DuckDB and attach the remote database
+
+Start DuckDB (without opening any local file):
+
+```bash
+duckdb
+```
+
+Then, inside the DuckDB prompt, run:
+
+```sql
+INSTALL httpfs;
+LOAD httpfs;
+
+-- reset S3-related settings (just to be safe)
+RESET s3_endpoint;
+RESET s3_access_key_id;
+RESET s3_secret_access_key;
+
+-- attach the remote database in READ ONLY mode
+ATTACH '<PRESIGNED_URL>' AS openaire (READ_ONLY);
+
+-- switch to the attached database
+USE openaire;
+
+-- sanity checks
+SHOW TABLES;
+SELECT COUNT(*) FROM dataset;
+SELECT COUNT(*) FROM cz_org;
+```
+
+Replace `<PRESIGNED_URL>` with the full pre-signed URL you received.
+
+If `SHOW TABLES;` works and the example `SELECT` returns a number, the connection is fine and you can start running your own queries.
+
+---
+
+## 3. Example queries
+
+A few simple examples:
+
+```sql
+-- list CZ organisations
+SELECT * FROM cz_org LIMIT 20;
+
+-- see PID scheme stats
+SELECT * FROM cz_pid_scheme_stats;
+
+-- show some CZ handle records (deduplicated)
+SELECT *
+FROM cz_handles_enriched_dedup
+LIMIT 20;
+```
+
+---
+
+## 4. Notes and recommendations
+
+* The database is ~250 GiB and is accessed over the network.
+  For heavy analysis, it may be more efficient to **download the `.duckdb` file once** and work locally.
+* The database is attached as **READ_ONLY** – this is intentional, so nobody can accidentally modify the shared snapshot.
+* The pre-signed URL may **expire**.
+  If you suddenly get `AccessDenied` or similar errors, ask for a fresh URL.
+
