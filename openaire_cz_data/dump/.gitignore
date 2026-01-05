@@ -1,0 +1,19 @@
+# Ignore everything in this folder by default
+*
+
+# Always keep documentation / control files
+!.gitignore
+!README.md
+
+# Keep selected files (allow-list)
+# Add here only the artifacts that are documented in dump/README.md
+!cz_pid_scheme_stats_full_vs_dedup.csv
+!cz_datacite_institution_author_datasets.csv
+!cz_institution_author_datasets.csv
+!cz_institution_author_datasets_all.csv
+
+# (Optional) If you keep SQL scripts / small helper docs in dump/
+#!*.sql
+#!*.md
+#!*.sha256
+
