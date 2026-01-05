@@ -30,8 +30,14 @@ Top-level:
   provenance.
 
 - `openaire_cz_data/`  
-  Working data directory, split by “assistant” used when the code / scripts
+  Working data directory, split by the source of data and the “assistant” used when the code / scripts
   were drafted:
+
+  - `openaire_cz_data/outputs/v4/`
+    **Public output (v4)**: final table of **Czech institution (ROR) – author – dataset/DOI** links for datasets with `publicationDate >= 2021-01-01` (see the README inside the folder).
+  
+  - `openaire_cz_data/dump/`
+    Documented intermediate artifacts / review files used to build the output (see the README inside the folder).
 
   - `openaire_cz_data/chatgpt/`
     - `cz_datasets_countryCZ.jsonl` (and/or `.jsonl.gz`)  
